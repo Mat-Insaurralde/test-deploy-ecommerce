@@ -1,4 +1,4 @@
 -------------------------------------------------------------------------------
 Test set: com.caballerosGuardiaReal.ecommerce.ECommerceApplicationTests
 -------------------------------------------------------------------------------
-Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 20.601 s - in com.caballerosGuardiaReal.ecommerce.ECommerceApplicationTests
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 33.717 s - in com.caballerosGuardiaReal.ecommerce.ECommerceApplicationTests
