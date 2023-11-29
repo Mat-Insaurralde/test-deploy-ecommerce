@@ -1,0 +1,220 @@
+package com.caballerosGuardiaReal.ecommerce.servicios;
+
+import com.caballerosGuardiaReal.ecommerce.entidades.Categoria;
+import com.caballerosGuardiaReal.ecommerce.entidades.Fabricante;
+import com.caballerosGuardiaReal.ecommerce.entidades.Imagen;
+import com.caballerosGuardiaReal.ecommerce.entidades.Producto;
+import com.caballerosGuardiaReal.ecommerce.enumeraciones.Condicion;
+import com.caballerosGuardiaReal.ecommerce.excepciones.MiException;
+import com.caballerosGuardiaReal.ecommerce.repositorios.CategoriaRepositorio;
+import com.caballerosGuardiaReal.ecommerce.repositorios.FabricanteRepositorio;
+import com.caballerosGuardiaReal.ecommerce.repositorios.ProductoRepositorio;
+import jakarta.transaction.Transactional;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+@Service
+public class ProductoServicio {
+
+    @Autowired
+    private ProductoRepositorio productoRepositorio;
+
+    @Autowired
+    private FabricanteRepositorio fabricanteoRepositorio;
+
+    @Autowired
+    private CategoriaRepositorio categoriaRepositorio;
+
+    @Autowired
+    private FabricanteServicio fabricanteServicio;
+
+    @Autowired
+    private CategoriaServicio categoriaServicio;
+
+    @Autowired
+    private ImagenServicio imagenServicio;
+
+    @Transactional
+    public Producto crearProducto(String nombre, Double precio, String descripcion, Integer stock,
+            String condicion, String idCategoria, MultipartFile archivo, String idFabricante,
+            String EAN) throws MiException {
+
+        validar(nombre, precio, stock, condicion, idCategoria, idFabricante, EAN);
+
+        Producto producto = new Producto();
+
+        //funcion recurrente que escriba un factorial, programacion recurrente
+        producto.setNombre(nombre);
+        producto.setPrecio(precio);
+        producto.setDescripcion(descripcion);
+        producto.setStock(stock);
+        producto.setCondicion(Condicion.valueOf(condicion));
+        producto.setEstado(Boolean.TRUE);
+        producto.setEAN(EAN);
+        Optional<Fabricante> fabricanteRespuesta = fabricanteoRepositorio.findById(idFabricante);
+        Optional<Categoria> categoriaRespuesta = categoriaRepositorio.findById(idCategoria);
+
+        Fabricante fabricante = new Fabricante();
+
+        Categoria categoria = new Categoria();
+
+        if (fabricanteRespuesta.isPresent()) {
+            fabricante = fabricanteRespuesta.get();
+        } else {
+            fabricante = fabricanteServicio.crearFabricante(idFabricante);
+        }
+
+        if (categoriaRespuesta.isPresent()) {
+            categoria = categoriaRespuesta.get();
+        } else {
+            categoria = categoriaServicio.crearCategoria(idCategoria);
+        }
+
+        producto.setFabricante(fabricante);
+        producto.setCategoria(categoria);
+
+        Imagen imagen = null;
+        //ver lo de el try catch
+        try {
+            imagen = imagenServicio.guardar(archivo);
+        } catch (IOException | MiException ex) {
+            Logger.getLogger(ProductoServicio.class.getName()).log(Level.SEVERE, null, ex);
+        }
+
+        producto.setImagen(imagen);
+
+        return productoRepositorio.save(producto);
+    }
+
+    @Transactional
+    //agregar el miException
+    //voy a listar la categoria y el fabricante
+    public Producto actualizar(String idProducto, String nombre, Double precio,
+            String descripcion, Integer stock, String condicion,
+            String idCategoria, MultipartFile archivo, String idFabricante,
+            Boolean estado, String EAN) throws MiException{
+        
+         validar(nombre, precio, stock, condicion, idCategoria, idFabricante, EAN);
+
+        Optional<Producto> respuesta = productoRepositorio.findById(idProducto);
+
+        Optional<Categoria> categoriaRespuesta = categoriaRepositorio.findById(idCategoria);
+
+        Optional<Fabricante> fabricanteRespuesta = fabricanteoRepositorio.findById(idFabricante);
+       
+        Categoria categoria;
+
+        Fabricante fabricante;
+
+        if (categoriaRespuesta.isPresent()) {
+
+            categoria = categoriaRespuesta.get();
+
+        } else {
+            //ver despues
+            categoria = categoriaServicio.crearCategoria(idCategoria);
+        }
+
+        if (fabricanteRespuesta.isPresent()) {
+            fabricante = fabricanteRespuesta.get();
+        } else {
+            //ver despues
+            fabricante = fabricanteServicio.crearFabricante(idFabricante);
+        }
+
+        if (respuesta.isPresent()) {
+            Producto producto = respuesta.get();
+
+            producto.setNombre(nombre);
+            producto.setDescripcion(descripcion);
+            producto.setCategoria(categoria);
+            producto.setFabricante(fabricante);
+            producto.setStock(stock);
+            producto.setPrecio(precio);
+            producto.setCondicion(Condicion.valueOf(condicion) );
+            producto.setEstado(estado);
+            producto.setEAN(EAN);
+            String idImagen = null;
+
+            if (producto.getImagen() != null) {
+                idImagen = producto.getImagen().getId();
+            }
+
+            Imagen imagen = null;
+            //ver el try catch
+            try {
+                imagen = imagenServicio.actualizar(archivo, idImagen);
+            } catch (IOException | MiException ex) {
+                Logger.getLogger(ProductoServicio.class.getName()).log(Level.SEVERE, null, ex);
+            }
+
+            producto.setImagen(imagen);
+
+            return productoRepositorio.save(producto);
+
+        }
+        return null;
+    }
+
+    public Producto getOne(String id) {
+        return productoRepositorio.findById(id).get();
+    }
+
+    public List<Producto> listarProductos() {
+
+        return productoRepositorio.findAll();
+
+    }
+
+    @Transactional
+    public void cambiarEstado(String id) {
+
+        Optional<Producto> respuesta = productoRepositorio.findById(id);
+
+        if (respuesta.isPresent()) {
+
+            Producto producto = respuesta.get();
+
+            producto.setEstado((producto.getEstado()) ? false : true);
+
+            productoRepositorio.save(producto);
+
+        }
+
+    }
+
+    private void validar(String nombre, Double precio, Integer stock,
+            String condicion, String idCategoria, String idFabricante,
+            String EAN) throws MiException {
+
+        if (nombre == null || nombre.isEmpty()) {
+            throw new MiException("El nombre no puede estar vacio");
+        }
+        if (precio == null || precio < 0) {
+            throw new MiException("El precio no puede estar vacio");
+        }
+        if (stock == null || stock < 0) {
+            throw new MiException("El stock no puede estar vacio o ser negativo");
+        }
+        if (condicion == null || condicion.isEmpty()) {
+            throw new MiException("la condición del producto no puede estar vacio");
+        }
+        if (idCategoria == null || idCategoria.isEmpty()) {
+            throw new MiException("La categoria no puede estar vacio");
+        }
+        if (idFabricante == null || idFabricante.isEmpty()) {
+            throw new MiException("El fabricante no puede estar vacio");
+        }
+        if (EAN == null) {
+            throw new MiException("El EAN no puede estar vacio");
+        }
+        
+    }
+
+}
